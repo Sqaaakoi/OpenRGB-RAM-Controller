@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "commonjs",
+    "rootDir": "./src",
+    "allowJs": true,
+    "checkJs": true,
+    "outDir": "./out",
+    "newLine": "lf",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "./src/**/*"
+  ]
+}
