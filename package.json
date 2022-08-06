@@ -9,6 +9,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "bilinear-interpolate": "^0.0.3",
+    "lodash": "^4.2.1",
     "openrgb-sdk": "^0.5.2"
   },
   "devDependencies": {

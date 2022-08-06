@@ -5,11 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const openrgb_sdk_1 = require("openrgb-sdk");
 const util_1 = require("util");
-const gradient_color_1 = __importDefault(require("gradient-color"));
 const color_1 = __importDefault(require("color"));
 let client = new openrgb_sdk_1.Client("RAM-Usage-Integration", 6742, "localhost");
-// const colours: GradientColor[] = [{ color: "#18b218" }, /*{ color: "#18b218", frac: 0 },*/ { color: "#1818b2" }, /*{ color: "#1818b2", frac: 0 },*/ { color: "#b218b2" }, /*{ color: "#b218b2", frac: 0 },*/ { color: "#b26818" }, /*{ color: "#b26818", frac: 0 }, */{ color: "#ffffff" }, { color: "#ffffff" }];
-const colours = [{ color: "#18b218" }, { color: "#18b218", frac: 0 }, { color: "#1818b2" }, { color: "#1818b2", frac: 0 }, { color: "#b218b2" }, { color: "#b218b2", frac: 0 }, { color: "#b26818" }, { color: "#b26818", frac: 0 }, { color: "#ffffff" }, { color: "#ffffff" }];
+const colours = [{ color: "#18b218" }, { color: "#18b218" }, /*{ color: "#18b218", frac: 0 },*/ { color: "#1818b2" }, /*{ color: "#1818b2", frac: 0 },*/ { color: "#b218b2" }, /*{ color: "#b218b2", frac: 0 },*/ { color: "#b26818" }, /*{ color: "#b26818", frac: 0 }, */ { color: "#ffffff" }];
+// const colours: GradientColor[] = [{ color: "#18b218" }, { color: "#18b218", frac: 0 }, { color: "#1818b2" }, { color: "#1818b2", frac: 0 }, { color: "#b218b2" }, { color: "#b218b2", frac: 0 }, { color: "#b26818" }, { color: "#b26818", frac: 0 }, { color: "#ffffff" }, { color: "#ffffff" }];
 let tryConnect = async () => {
     try {
         await client.connect();
@@ -49,20 +48,43 @@ let updateRam = async () => {
         if (dev.type != 1)
             return;
         let gradientOfColours = structuredClone(colours);
-        gradientOfColours[0].frac = (memInfoFormatted.used / memInfoFormatted.total);
-        gradientOfColours[2].frac = (memInfoFormatted.buffers / memInfoFormatted.total);
-        gradientOfColours[4].frac = (memInfoFormatted.shared / memInfoFormatted.total);
-        gradientOfColours[6].frac = (memInfoFormatted.cache / memInfoFormatted.total);
-        gradientOfColours[8].frac = 1 - gradientOfColours[0].frac - gradientOfColours[1].frac - gradientOfColours[2].frac - gradientOfColours[3].frac;
-        console.log(gradientOfColours);
-        let rawGradient = (0, gradient_color_1.default)(gradientOfColours, dev.leds.length * 2);
-        console.log(rawGradient);
-        let newGradient = [];
+        gradientOfColours[0].frac = 0;
+        gradientOfColours[1].frac = memInfoFormatted.used;
+        gradientOfColours[2].frac = gradientOfColours[1].frac + memInfoFormatted.buffers;
+        gradientOfColours[3].frac = gradientOfColours[2].frac + memInfoFormatted.shared;
+        gradientOfColours[4].frac = gradientOfColours[3].frac + memInfoFormatted.cache;
+        gradientOfColours[5].frac = memInfoFormatted.total;
+        let channels = convertArrays(gradientOfColours);
+        let output = [];
         for (let i = 0; i < dev.leds.length; i++) {
-            newGradient[i] = parseRgb(rawGradient[i * 2]);
+            console.log(channels);
+            console.log((memInfoFormatted.total / (dev.leds.length - 1)) * i);
+            output[i] = getColorAt(channels, (memInfoFormatted.total / (dev.leds.length)) * i);
         }
-        console.log(newGradient);
-        client.updateLeds(devI, newGradient);
+        console.log(channels, output);
+        client.updateLeds(devI, output);
     });
 };
 setInterval(updateRam, 250);
+let convertArrays = (a) => {
+    let channelArrays = {
+        red: [],
+        green: [],
+        blue: []
+    };
+    a.forEach(e => {
+        let colors = openrgb_sdk_1.utils.hexColor(e.color);
+        console.log(colors, 'aaa');
+        for (const channel in colors) {
+            channelArrays[channel].push([e.frac, colors[channel]]);
+        }
+    });
+    return channelArrays;
+};
+let getColorAt = (as, i) => {
+    return {
+        red: require('bilinear-interpolate')(as.red)(i),
+        green: require('bilinear-interpolate')(as.green)(i),
+        blue: require('bilinear-interpolate')(as.blue)(i)
+    };
+};

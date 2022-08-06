@@ -10,8 +10,8 @@ type GradientColor {
     frac?: number
 }
 
-// const colours: GradientColor[] = [{ color: "#18b218" }, /*{ color: "#18b218", frac: 0 },*/ { color: "#1818b2" }, /*{ color: "#1818b2", frac: 0 },*/ { color: "#b218b2" }, /*{ color: "#b218b2", frac: 0 },*/ { color: "#b26818" }, /*{ color: "#b26818", frac: 0 }, */{ color: "#ffffff" }, { color: "#ffffff" }];
-const colours: GradientColor[] = [{ color: "#18b218" }, { color: "#18b218", frac: 0 }, { color: "#1818b2" }, { color: "#1818b2", frac: 0 }, { color: "#b218b2" }, { color: "#b218b2", frac: 0 }, { color: "#b26818" }, { color: "#b26818", frac: 0 }, { color: "#ffffff" }, { color: "#ffffff" }];
+const colours: GradientColor[] = [{ color: "#18b218" }, { color: "#18b218" }, /*{ color: "#18b218", frac: 0 },*/ { color: "#1818b2" }, /*{ color: "#1818b2", frac: 0 },*/ { color: "#b218b2" }, /*{ color: "#b218b2", frac: 0 },*/ { color: "#b26818" }, /*{ color: "#b26818", frac: 0 }, */{ color: "#ffffff" }];
+// const colours: GradientColor[] = [{ color: "#18b218" }, { color: "#18b218", frac: 0 }, { color: "#1818b2" }, { color: "#1818b2", frac: 0 }, { color: "#b218b2" }, { color: "#b218b2", frac: 0 }, { color: "#b26818" }, { color: "#b26818", frac: 0 }, { color: "#ffffff" }, { color: "#ffffff" }];
 
 let tryConnect = async () => {
     try {
@@ -58,24 +58,51 @@ let updateRam = async () => {
     devices.forEach((dev,devI) => {
         if (dev.type != 1) return;
         let gradientOfColours = structuredClone(colours);
-        gradientOfColours[0].frac = (memInfoFormatted.used / memInfoFormatted.total);
-        gradientOfColours[2].frac = (memInfoFormatted.buffers / memInfoFormatted.total);
-        gradientOfColours[4].frac = (memInfoFormatted.shared / memInfoFormatted.total);
-        gradientOfColours[6].frac = (memInfoFormatted.cache / memInfoFormatted.total);
-        gradientOfColours[8].frac = 1 - gradientOfColours[0].frac - gradientOfColours[1].frac - gradientOfColours[2].frac - gradientOfColours[3].frac;
-        console.log(gradientOfColours);
+        gradientOfColours[0].frac = 0;
+        gradientOfColours[1].frac = memInfoFormatted.used;
+        gradientOfColours[2].frac = gradientOfColours[1].frac + memInfoFormatted.buffers;
+        gradientOfColours[3].frac = gradientOfColours[2].frac + memInfoFormatted.shared;
+        gradientOfColours[4].frac = gradientOfColours[3].frac + memInfoFormatted.cache;
+        gradientOfColours[5].frac = memInfoFormatted.total;
 
-        let rawGradient = gradient(gradientOfColours, dev.leds.length * 2);
-        console.log(rawGradient);
-        let newGradient = [];
-        for (let i = 0; i < dev.leds.length; i++) {
-            newGradient[i] = parseRgb(rawGradient[i*2]);
-        }
-        console.log(newGradient);
+        let channels = convertArrays(gradientOfColours);
         
-        client.updateLeds(devI, newGradient)
+        let output = [];
+        for (let i = 0; i < dev.leds.length; i++) {
+            console.log(channels);
+            console.log((memInfoFormatted.total / (dev.leds.length - 1)) * i);
+            
+            output[i] = getColorAt(channels, (memInfoFormatted.total / (dev.leds.length)) * i);
+        }
+        console.log(channels, output);
+        
+        client.updateLeds(devI, output)
     });
 
-}
+}   
 
 setInterval(updateRam, 250);
+
+let convertArrays = (a) => {
+    let channelArrays = {
+        red: [],
+        green: [],
+        blue: []
+    }
+    a.forEach(e => {
+        let colors = utils.hexColor(e.color);
+        console.log(colors, 'aaa');
+        for (const channel in colors) {
+            channelArrays[channel].push([e.frac, colors[channel]]);
+        }
+    });
+    return channelArrays;
+}
+
+let getColorAt = (as, i) => {
+    return {
+        red: require('bilinear-interpolate')(as.red)(i),
+        green: require('bilinear-interpolate')(as.green)(i),
+        blue: require('bilinear-interpolate')(as.blue)(i)
+    };
+}
